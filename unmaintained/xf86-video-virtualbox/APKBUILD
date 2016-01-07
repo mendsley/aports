@@ -1,23 +1,20 @@
 # Maintainer: Natanael Copa <ncopa@alpinelinux.org>
 pkgname=xf86-video-virtualbox
 pkgdesc="Xorg Virtual box video driver"
-pkgver=4.3.8
+pkgver=5.0.12
 _ver=${pkgver/_rc/_RC}
+_xver="118"
 pkgrel=0
 arch="all"
 url='http://virtualbox.org'
 license="GPL custom"
-makedepends="
-	dev86 iasl kbuild>=0.1.9998_pre20120806-r1 yasm zlib-dev sed
-	libxinerama-dev libxrandr-dev libxmu-dev libxdmcp-dev libxau-dev
-	libxext-dev libxfixes-dev libiconv-dev libx11-dev xorg-server-dev
-	mesa-dev"
+makedepends="linux-grsec-dev yasm kbuild zlib-dev
+	linux-headers python libx11-dev libelf-dev"
 source="http://download.virtualbox.org/virtualbox/$_ver/VirtualBox-$_ver.tar.bz2
-	uclibc-gnu_linux.patch
-	futimens.patch
-	xf86-video-virtualbox-4-makeself-check.patch
-	musl-no-glibc.patch
+	https://github.com/megastep/makeself/archive/release-2.2.0.tar.gz
 	LocalConfig.kmk
+	no-glibc.patch
+	dladdr1.patch
 	"
 #	uclibc-spawn.patch
 
@@ -32,25 +29,17 @@ prepare() {
 		esac
 	done
 
-	# the kmk_sed they ship and use is linked to glibc...
-	sed -i -e 's:KBUILD_SED=.*:KBUILD_SED="busybox sed":' configure
-	rm -r kBuild/bin tools
+	## the kmk_sed they ship and use is linked to glibc...
+	#sed -i -e 's:KBUILD_SED=.*:KBUILD_SED="busybox sed":' configure
+	#rm -r kBuild/bin tools
 	cp "$srcdir"/LocalConfig.kmk .
 }
 
 build() {
 	cd "$_builddir"
 	cp "$srcdir/LocalConfig.kmk" .
-	./configure --disable-docs \
-		--nofatal \
-		--disable-java \
-		--disable-pulse \
-		--disable-opengl \
-		--disable-kmods \
-		--disable-xpcom \
-		--disable-sdl-ttf \
-		--build-headless \
-		|| return 1
+	ln -s "$srcdir/makeself-release-2.2.0/makeself.sh" "$srcdir/makeself-release-2.2.0/makeself"
+	PATH=$PATH:$srcdir/makeself-release-2.2.0 ./configure --only-additions || return 1
 	. ./env.sh
 	for i in Runtime Additions/common/VBoxGuestLib \
 			Additions/x11/x11stubs Additions/x11/vboxvideo; do
@@ -61,25 +50,22 @@ build() {
 
 package() {
 	cd "$_builddir"/out/linux.*/release/bin/additions
-	install -Dm755 vboxvideo_drv_112.so \
+	install -Dm755 vboxvideo_drv_"$_xver".so \
 		"$pkgdir"/usr/lib/xorg/modules/drivers/vboxvideo_drv.so
 }
 
-md5sums="422ab09b7eb9c0564b55a6a0a6e6678f  VirtualBox-4.3.8.tar.bz2
-072ee2114b3771e7bdbff5211f342755  uclibc-gnu_linux.patch
-10f65154d3ff17d88fad5ed384e20276  futimens.patch
-44efb3c4be214daa453a317d527f1f30  xf86-video-virtualbox-4-makeself-check.patch
-a66c27f91349d9c9ae8304905b855fd6  musl-no-glibc.patch
-eedb57172f97829c2ad53fdb970a1c68  LocalConfig.kmk"
-sha256sums="ffabd8735bdc80753cec29d01b499769f41e083f37a3f58b3055f19d3b1b9641  VirtualBox-4.3.8.tar.bz2
-1bf547f849bf325e443f74ce7fbfb3657d9b2918b4c888efac304eac929a0fae  uclibc-gnu_linux.patch
-deaa739129ec23a05d5aa43ad8af3e93086ca340696fde3e5d1539e1c7347adb  futimens.patch
-31ddafbeef6d35696d76de06988412f888fd5403854952bb00ceab99f5ed4966  xf86-video-virtualbox-4-makeself-check.patch
-3f1c59fbd4e9fb2a6d2777c9f5979735fe77cd564293bde1edb3017255e5b164  musl-no-glibc.patch
-5ec9b53a113af1c37edf320be8a2f5f688b4afce7c5a065d785bea8c95645d8b  LocalConfig.kmk"
-sha512sums="0bc00254733befee6ba864b9c88e0ddedb5949fff884313b72bbedeaefb572fd129a8d16b179612acef9b53fc3d2203ac775656d6c941d94a77bb944fdd66903  VirtualBox-4.3.8.tar.bz2
-d2bba9de80c40bc258b025a8e3395a4b0b7781d70d5528993f0fff57e9fc015306b483d4da14e22aed3f188ffda8685aa51e13943f48c17ae18a2a66d15d7bbb  uclibc-gnu_linux.patch
-1da850bc30399ecde501eba5403ef1add1ae108d38394b01cd7f5cdf0462b855793d564d3adc1f770983b36529d77f3f7b0269fb65152468084a0a44c38e1638  futimens.patch
-7f60a857213b1b045247f5a041ebed60099f0f634b7d843bd85062eb4cf8504e8d5907b43df852dc49465248e2cbe3d998acefeb676113ca9a38e72da6d926a7  xf86-video-virtualbox-4-makeself-check.patch
-d79032d0a7a098e5e63c9a11cce278322cc2ecd75a996dc11096a738d43cecc84abb5de25b32b4409164d08a77541bcc00a53e7e62624880756c7e8fb238b447  musl-no-glibc.patch
-a126ef0182caca3fcbe5d12947cd63a6a729280127f5ead874b5ae0d1fe5f3aadd538b639bfd0d738f95048c25027761f47374e91b585b78e1d5a65ec98a5c23  LocalConfig.kmk"
+md5sums="5912835882ef547e0559c7e73bc85828  VirtualBox-5.0.12.tar.bz2
+8075530b2ad0a2fbd4bffa80a96eb2ea  release-2.2.0.tar.gz
+eedb57172f97829c2ad53fdb970a1c68  LocalConfig.kmk
+495991bcb6e4020eddcc4550c9f7484d  no-glibc.patch
+a04cc25f73b25c7f85b347fec5120438  dladdr1.patch"
+sha256sums="de0362b1d404d1ca0298db1984acb6f0f1c6210313aeb744fea345ad9201e86e  VirtualBox-5.0.12.tar.bz2
+9c9d003e097d9c198433a05926e64d9b7cd330c7f10cb4e6048877d0a87de341  release-2.2.0.tar.gz
+5ec9b53a113af1c37edf320be8a2f5f688b4afce7c5a065d785bea8c95645d8b  LocalConfig.kmk
+7855dba4f147d9387867a767c16191befee22253fa7705215822c6db9d5621fc  no-glibc.patch
+0b2de9465eb2fb3731581c99332a962d299ea4137656ec1c0c46e0f026c415f1  dladdr1.patch"
+sha512sums="eef01d1a5121905d2fbfcd48081f18db06433187bfbfea6a006b3adea11cad8c8351025fd19fa115c132231592330b17bfeba033a3a168f3064176a3f7586d7a  VirtualBox-5.0.12.tar.bz2
+11cd536baed2d56405103f18a8318a202092755a74baf10730aa58dc57032e327697b1c7f76bf9bf438927093ba9ac467ffa0c4564c7f6b1d3b2b3936f34fa73  release-2.2.0.tar.gz
+a126ef0182caca3fcbe5d12947cd63a6a729280127f5ead874b5ae0d1fe5f3aadd538b639bfd0d738f95048c25027761f47374e91b585b78e1d5a65ec98a5c23  LocalConfig.kmk
+6bcb267bac65ea1d95bc5a520f2d68637008c68248a1f3a615bc25cc253dc3a1774c06c9b8e9e8df2a7756c83202c3352cdfcb3ac42be6916885759b9514ed27  no-glibc.patch
+b9f54aac199574d26271acf87903fc34e5ede4d6119f82c5cd9ef2c6ff64301ffa6958f8c8068ba16a8fa684faa00419f8dff668b631edf9aa12d975337fdc8c  dladdr1.patch"

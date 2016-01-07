@@ -1,0 +1,21 @@
+--- ./src/VBox/Additions/common/crOpenGL/fakedri_drv.c.orig
++++ ./src/VBox/Additions/common/crOpenGL/fakedri_drv.c
+@@ -36,6 +36,9 @@
+ #include <gelf.h>
+ #include <libelf.h>
+ #include <string.h>
++#elif !defined(__GLIBC__)
++#include <libelf/libelf.h>
++#include <libelf/gelf.h>
+ #endif
+ 
+ /** X server message type definitions. */
+@@ -228,7 +231,7 @@ vboxApplyPatch(const char* psFuncName, void *pDst, const void *pSrc, unsigned lo
+ 
+ #define FAKEDRI_JMP64_PATCH_SIZE 13
+ 
+-#if defined(RT_OS_FREEBSD)
++#if defined(RT_OS_FREEBSD) || !defined(__GLIBC__)
+ /* Provide basic dladdr1 flags */
+ enum {
+ 	RTLD_DL_SYMENT	= 1

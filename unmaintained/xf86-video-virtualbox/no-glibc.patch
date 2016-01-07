@@ -1,0 +1,118 @@
+--- ./src/VBox/Runtime/include/internal/fs.h.orig
++++ ./src/VBox/Runtime/include/internal/fs.h
+@@ -47,7 +47,7 @@ void    rtFsObjInfoAttrSetUnixGroup(PRTFSOBJINFO pObjInfo, RTUID gid);
+ #endif
+ 
+ #ifdef RT_OS_LINUX
+-# ifdef __USE_MISC
++# if defined(__USE_MISC) || !defined(__GLIBC__)
+ #  define HAVE_STAT_TIMESPEC_BRIEF
+ # else
+ #  define HAVE_STAT_NSEC
+--- ./src/VBox/Runtime/r3/linux/semevent-linux.cpp.orig
++++ ./src/VBox/Runtime/r3/linux/semevent-linux.cpp
+@@ -25,7 +25,15 @@
+  */
+ 
+ #include <features.h>
+-#if __GLIBC_PREREQ(2,6) && !defined(IPRT_WITH_FUTEX_BASED_SEMS)
++#define USE_GLIBC 0
++#if defined(__GLIBC__)
++# if __GLIBC_PREREQ(2,6) && !defined(IPRT_WITH_FUTEX_BASED_SEMS)
++#  undef  USE_GLIBC
++#  define USE_GLIBC 1
++# endif
++#endif
++
++#if USE_GLIBC
+ 
+ /*
+  * glibc 2.6 fixed a serious bug in the mutex implementation. We wrote this
+--- ./src/VBox/Runtime/r3/linux/semeventmulti-linux.cpp.orig
++++ ./src/VBox/Runtime/r3/linux/semeventmulti-linux.cpp
+@@ -26,7 +26,15 @@
+ 
+ 
+ #include <features.h>
+-#if __GLIBC_PREREQ(2,6) && !defined(IPRT_WITH_FUTEX_BASED_SEMS)
++#define USE_GLIBC 0
++#if defined(__GLIBC__)
++# if __GLIBC_PREREQ(2,6) && !defined(IPRT_WITH_FUTEX_BASED_SEMS)
++#  undef  USE_GLIBC
++#  define USE_GLIBC 1
++# endif
++#endif
++
++#if USE_GLIBC
+ 
+ /*
+  * glibc 2.6 fixed a serious bug in the mutex implementation. We wrote this
+--- ./src/VBox/Runtime/r3/linux/sysfs.cpp.orig
++++ ./src/VBox/Runtime/r3/linux/sysfs.cpp
+@@ -40,7 +40,6 @@
+ 
+ #include <unistd.h>
+ #include <stdio.h>
+-#include <sys/sysctl.h>
+ #include <sys/stat.h>
+ #include <sys/fcntl.h>
+ #include <errno.h>
+--- ./src/VBox/Runtime/r3/linux/thread-affinity-linux.cpp.orig
++++ ./src/VBox/Runtime/r3/linux/thread-affinity-linux.cpp
+@@ -32,7 +32,15 @@
+ # define _GNU_SOURCE
+ #endif
+ #include <features.h>
+-#if __GLIBC_PREREQ(2,4)
++#define USE_GLIBC 0
++#if defined(__GLIBC__)
++# if __GLIBC_PREREQ(2,4)
++#  undef  USE_GLIBC
++#  define USE_GLIBC 1
++# endif
++#endif
++
++#if USE_GLIBC
+ 
+ #include <sched.h>
+ #include <unistd.h>
+--- ./src/VBox/Runtime/r3/posix/thread2-posix.cpp.orig
++++ ./src/VBox/Runtime/r3/posix/thread2-posix.cpp
+@@ -62,7 +62,7 @@ RTDECL(int) RTThreadSleep(RTMSINTERVAL cMillies)
+         pthread_yield_np();
+ #elif defined(RT_OS_FREEBSD) /* void pthread_yield */
+         pthread_yield();
+-#elif defined(RT_OS_SOLARIS) || defined(RT_OS_HAIKU)
++#elif defined(RT_OS_SOLARIS) || defined(RT_OS_HAIKU) || !defined(__GLIBC__)
+         sched_yield();
+ #else
+         if (!pthread_yield())
+@@ -101,7 +101,7 @@ RTDECL(int) RTThreadSleepNoLog(RTMSINTERVAL cMillies)
+         pthread_yield_np();
+ #elif defined(RT_OS_FREEBSD) /* void pthread_yield */
+         pthread_yield();
+-#elif defined(RT_OS_SOLARIS) || defined(RT_OS_HAIKU)
++#elif defined(RT_OS_SOLARIS) || defined(RT_OS_HAIKU) || !defined(__GLIBC__)
+         sched_yield();
+ #else
+         if (!pthread_yield())
+@@ -130,7 +130,7 @@ RTDECL(bool) RTThreadYield(void)
+ #endif
+ #ifdef RT_OS_DARWIN
+     pthread_yield_np();
+-#elif defined(RT_OS_SOLARIS) || defined(RT_OS_HAIKU)
++#elif defined(RT_OS_SOLARIS) || defined(RT_OS_HAIKU) || !defined(__GLIBC__)
+     sched_yield();
+ #else
+     pthread_yield();
+--- ./src/libs/kStuff/kStuff/include/k/kDefs.h.orig
++++ ./src/libs/kStuff/kStuff/include/k/kDefs.h
+@@ -84,6 +84,8 @@
+ #  define K_OS      K_OS_FREEBSD
+ # elif defined(__gnu_linux__)
+ #  define K_OS      K_OS_LINUX
++# elif defined(__linux__)
++#  define K_OS      K_OS_LINUX
+ # elif defined(__NetBSD__) /*??*/
+ #  define K_OS      K_OS_NETBSD
+ # elif defined(__OpenBSD__) /*??*/
